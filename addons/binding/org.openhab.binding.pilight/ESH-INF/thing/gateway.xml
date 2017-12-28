@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="pilight"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+        xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+
+
+    <bridge-type id="gateway">
+        <label>Pilight Gateway</label>
+        <description>the pilight server</description>
+
+        <channels>
+            <channel id="cpu" typeId="cpu" />
+        </channels> 
+
+        <properties>
+            <property name="pilightVersion">-</property>
+        </properties>
+
+        <config-description>
+	        <parameter-group name="instance">
+	            <label>InstanceIp</label>
+	            <description>network settings regarding the pilight instance</description>
+	        </parameter-group>
+	        <parameter-group name="connection">
+	            <label>Connection</label>
+	            <description>Connection settings</description>
+	        </parameter-group>
+	        <parameter name="ipAddress" type="text" required="true" groupName="instance">
+	            <context>network-address</context>
+	            <label>IP address</label>
+	            <description>IP of the pilight instance</description>
+	            <default>localhost</default>
+	        </parameter>
+	        <parameter name="port" type="integer" required="false" min="0" max="65335" groupName="instance">
+	            <label>Port</label>
+	            <default>5000</default>
+	            <description>Port of the pilight instance. Note: you have to fix it in your pilight-config!</description>
+	        </parameter>
+	        <parameter name="heartbeatCheck" type="boolean" required="true" groupName="connection">
+	            <label>HeartbeatCheck</label>
+	            <description>enable heart beat check for connection</description>
+	            <default>true</default>
+	        </parameter>
+	        <parameter name="heartbeatFrequence" type="integer" required="false" min="500" max="60000" unit="ms" groupName="connection">
+	            <label>HeartbeatFrequence</label>
+	            <description>heart beat interval</description>
+	            <default>5000</default>
+	        </parameter>
+            <parameter name="updadeInverval" type="integer" required="false" min="500" max="60000" unit="ms" groupName="connection">
+                <label>updadeInvervall</label>
+                <description>polling interval</description>
+                <default>5000</default>
+            </parameter>
+	    </config-description>
+    </bridge-type>
+
+
+</thing:thing-descriptions>

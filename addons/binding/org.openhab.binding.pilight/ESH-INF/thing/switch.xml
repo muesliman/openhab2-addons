@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="pilight"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+        xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+
+
+    <thing-type id="switch">
+        <supported-bridge-type-refs>
+            <bridge-type-ref id="gateway" />
+        </supported-bridge-type-refs>
+
+        <label>switch</label>
+        <description>switch in pilight</description>
+
+		<channels>
+			<channel id="state" typeId="state" />
+		</channels>
+		
+		 <properties>
+            <property name="protocol">-</property>
+        </properties>
+
+        <config-description>
+	        <parameter-group name="deviceName">
+	            <label>PilightDeviceName</label>
+	            <description>name of the device given in the pilight config</description>
+	        </parameter-group>
+	    </config-description>
+    </thing-type>
+
+
+
+</thing:thing-descriptions>

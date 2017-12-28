@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<binding:binding id="pilight"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:binding="http://eclipse.org/smarthome/schemas/binding/v1.0.0"
+        xsi:schemaLocation="http://eclipse.org/smarthome/schemas/binding/v1.0.0 http://eclipse.org/smarthome/schemas/binding-1.0.0.xsd">
+
+
+    <name>pilight Binding</name>
+    <description>Binding for pilight (open source domotica solution - see https://www.pilight.org/). Supports version &gt; 7.0</description>
+    <author>sja / muesliman</author>
+
+    
+</binding:binding>

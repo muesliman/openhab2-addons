@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<thing:thing-descriptions bindingId="pilight"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:thing="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0"
+        xsi:schemaLocation="http://eclipse.org/smarthome/schemas/thing-description/v1.0.0 http://eclipse.org/smarthome/schemas/thing-description-1.0.0.xsd">
+
+
+    <channel-type id="state">
+        <item-type>String</item-type>
+        <label>State</label>
+        <description>Current state</description>
+    </channel-type>
+
+    <channel-type id="temperature">
+        <item-type>Number</item-type>
+        <label>Temperature</label>
+        <description>Current temperature in degrees celsius</description>
+        <category>Temperature</category>
+        <state readOnly="true" pattern="%.1f °C">
+        </state>
+    </channel-type>
+
+    <channel-type id="humidity">
+        <item-type>Number</item-type>
+        <label>Humidity</label>
+        <description>Current humidity in %</description>
+        <category>Humidity</category>
+        <state readOnly="true" pattern="%d %%">
+        </state>
+    </channel-type>
+
+    <channel-type id="pressure">
+        <item-type>Number</item-type>
+        <label>Pressure</label>
+        <description>Current pressure in millibar</description>
+        <category>Pressure</category>
+        <state readOnly="true" pattern="%.1f hPa">
+        </state>
+    </channel-type>
+
+	<channel-type id="cpu">
+		<item-type>Number</item-type>
+		<label>cpu load</label>
+		<description>xpu load in %</description>
+		<category>Pressure</category>
+		<state readOnly="true" pattern="%.1f %%">
+		</state>
+	</channel-type>
+
+</thing:thing-descriptions>
