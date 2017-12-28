@@ -1,50 +1,12 @@
-# YahooWeather Binding
+# pilight Binding
+The pilight binding allows openHAB to communicate with a pilight instance running pilight version 7.0 or greater.
 
-This binding uses the [Yahoo Weather service](https://developer.yahoo.com/weather/) for providing current weather information.
+# What is pilight?
+_pilight_ is a cheap way to control ‘Click On Click Off’ devices. It started as an application for the Raspberry Pi (using the GPIO interface) but it’s also possible now to connect it to any other PC using an Arduino Nano. You will need a cheap 433Mhz transceiver in both cases. See the [Pilight manual](https://manual.pilight.org/electronics/wiring.html) for more information.
 
-_Note:_ The Yahoo Weather API is provided by Yahoo free of charge for personal, non-commercial uses, but it requires attribution and the acceptance of their terms of use.
-By using this binding, you confirm that you agree with this - please read the details on [https://developer.yahoo.com/weather/](https://developer.yahoo.com/weather/).
+The binding supports Switch, Dimmer, Contact, String, and Number items.
 
-## Supported Things
+## TODO for this readme
+ - Add hint to ensure, `"standalone": 0` is set in config (is default?) to support disco of bridge
+ - Add Examples for config files
 
-There is exactly one supported thing, which represents the weather service. It has the id `weather`.
-
-## Thing Configuration
-
-Besides the location (as ```location``` as a [WOEID](https://en.wikipedia.org/wiki/WOEID) number), the second configuration parameter is ```refresh``` which defines the refresh interval in seconds.
-
-## Channels
-
-The weather information that is retrieved is available as these channels:
-
-| Channel Type ID | Item Type    | Description  |
-|-----------------|------------------------|------------- |
-| temperature | Number       | The current temperature in degrees Celsius |
-| humidity | Number       | The current humidity in % |
-| pressure | Number       | The current pressure in millibar (hPa) |
-
-
-## Full Example
-
-demo.things:
-
-```
-yahooweather:weather:berlin [ location=638242 ]
-```
-
-demo.items:
-
-```
-Number Temperature 	"Outside Temperature" { channel="yahooweather:weather:berlin:temperature" }
-```
-
-demo.sitemap:
-
-```
-sitemap demo label="Main Menu"
-{
-	Frame {
-		Text item=Temperature
-	}
-}
-```
