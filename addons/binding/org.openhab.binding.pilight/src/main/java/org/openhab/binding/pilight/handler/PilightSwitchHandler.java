@@ -13,9 +13,13 @@ public class PilightSwitchHandler extends BaseThingHandler {
 
     public PilightSwitchHandler(Thing thing) {
         super(thing);
-        this.pilightGatewayHandler = (PilightGatewayHandler) getBridge();
-        logger.debug("bingo");
         // TODO Auto-generated constructor stub
+    }
+
+    @Override
+    public void initialize() {
+        this.pilightGatewayHandler = (PilightGatewayHandler) getBridge().getHandler();
+        logger.debug("bingo");
     }
 
     @Override
