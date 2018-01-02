@@ -15,27 +15,26 @@ package org.openhab.binding.pilight.handler;
 import static org.openhab.binding.pilight.PilightBindingConstants.*;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang.StringUtils;
-import org.eclipse.smarthome.config.core.status.ConfigStatusMessage;
-import org.eclipse.smarthome.core.cache.ExpiringCacheMap;
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.smarthome.core.library.types.DecimalType;
 import org.eclipse.smarthome.core.thing.Bridge;
 import org.eclipse.smarthome.core.thing.ChannelUID;
 import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
-import org.eclipse.smarthome.core.thing.ThingStatusDetail;
-import org.eclipse.smarthome.core.thing.binding.ConfigStatusBridgeHandler;
+import org.eclipse.smarthome.core.thing.binding.BaseBridgeHandler;
+import org.eclipse.smarthome.core.thing.binding.ThingHandler;
 import org.eclipse.smarthome.core.types.Command;
-import org.eclipse.smarthome.core.types.RefreshType;
-import org.eclipse.smarthome.core.types.State;
-import org.eclipse.smarthome.core.types.UnDefType;
 import org.openhab.binding.pilight.PilightGatewayConfig;
+import org.openhab.binding.pilight.handler.IPilightDeviceHandlerCallback.DeviceStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,33 +53,21 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * @author Christoph Weitkamp - Changed use of caching utils to ESH ExpiringCacheMap
  *
  */
-public class PilightGatewayHandler extends ConfigStatusBridgeHandler implements IReadCallbacks, IDiscover {
+public class PilightGatewayHandler extends BaseBridgeHandler implements IReadCallbacks {
 
-    private final Logger logger = LoggerFactory.getLogger(PilightGatewayHandler.class);
     private final String setupChannel = "{\"action\": \"identify\", \"options\": { \"core\": 1, \"receiver\": 1, \"config\": 1, \"forward\": 0, \"stats\" : 1 }, \"uuid\": \"%s\", \"media\": \"all\"}";
     private final String requestConfig = "{\"action\": \"request config\"}";
     private final String requestValues = "{\"action\": \"request values\"}";
 
+    private final Logger logger = LoggerFactory.getLogger(PilightGatewayHandler.class);
+
+    private final Map<String, PilightDeviceHandler> registeredDevices = new HashMap<String, PilightDeviceHandler>();
+
     /// OLD ///
-    private static final String LOCATION_PARAM = "location";
-    private static final int MAX_DATA_AGE = 3 * 60 * 60 * 1000; // 3h
-    private static final int CACHE_EXPIRY = 10 * 1000; // 10s
-    private static final String CACHE_KEY_CONFIG = "CONFIG_STATUS";
-    private static final String CACHE_KEY_WEATHER = "WEATHER";
-
-    private final ExpiringCacheMap<String, String> cache = new ExpiringCacheMap<>(CACHE_EXPIRY);
-
-    private long lastUpdateTime;
-
-    private BigDecimal location;
-    private BigDecimal refresh;
-
-    private String weatherData = null;
-
-    ScheduledFuture<?> refreshJob;
-
+    ScheduledFuture<?> pollConfigJob;
     //// END OLD ///
 
+    private PilightGatewayConfig cfg;
     private ReaderThread readerThread;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -90,197 +77,55 @@ public class PilightGatewayHandler extends ConfigStatusBridgeHandler implements 
 
     @Override
     public void initialize() {
+        updateStatus(ThingStatus.UNKNOWN);
         logger.debug("Initializing PilightGatewayHandler handler.");
-
-        //
-        // location = (BigDecimal) config.get(LOCATION_PARAM);
-        //
-        // try {
-        // refresh = (BigDecimal) config.get("refresh");
-        // } catch (Exception e) {
-        // logger.debug("Cannot set refresh parameter.", e);
-        // }
-        //
-        // if (refresh == null) {
-        // // let's go for the default
-        // refresh = new BigDecimal(60);
-        // }
-        //
-        // cache.put(CACHE_KEY_CONFIG, () -> connection.getResponseFromQuery(
-        // "SELECT location FROM weather.forecast WHERE woeid = " + location.toPlainString()));
-        // cache.put(CACHE_KEY_WEATHER, () -> connection.getResponseFromQuery(
-        // "SELECT * FROM weather.forecast WHERE u = 'c' AND woeid = " + location.toPlainString()));
-
-        // get ip from conig
-        // validate ip + port
-        //
-
-        PilightGatewayConfig cfg = getThing().getConfiguration().as(PilightGatewayConfig.class);
-
+        cfg = getThing().getConfiguration().as(PilightGatewayConfig.class);
         logger.debug("config: " + cfg);
 
         readerThread = new ReaderThread(cfg.ipAddress, cfg.port, this);
         readerThread.start();
+    }
 
-        // startAutomaticRefresh();
+    @Override
+    public void childHandlerInitialized(ThingHandler childHandler, Thing childThing) {
+        IPilightDeviceHandlerCallback devHandler = (IPilightDeviceHandlerCallback) childHandler;
+        if (!registeredDevices.containsKey(devHandler.getDeviceName())) {
+            PilightDeviceHandler handler = new PilightDeviceHandler(devHandler.getDeviceName(), this, devHandler);
+            registeredDevices.put(devHandler.getDeviceName(), handler);
+            devHandler.setHandler(handler);
+        }
+        startConfigPolling();
     }
 
     @Override
     public void dispose() {
-        // refreshJob.cancel(true);
+        pollConfigJob.cancel(true);
         readerThread.stopReading();
-    }
-
-    private void startAutomaticRefresh() {
-        refreshJob = scheduler.scheduleWithFixedDelay(() -> {
-            try {
-                boolean success = updateWeatherData();
-                if (success) {
-                    updateState(new ChannelUID(getThing().getUID(), CHANNEL_TEMPERATURE), getTemperature());
-                    updateState(new ChannelUID(getThing().getUID(), CHANNEL_HUMIDITY), getHumidity());
-                    updateState(new ChannelUID(getThing().getUID(), CHANNEL_PRESSURE), getPressure());
-                }
-            } catch (Exception e) {
-                logger.debug("Exception occurred during execution: {}", e.getMessage(), e);
-                updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR, e.getMessage());
-            }
-        }, 0, refresh.intValue(), TimeUnit.SECONDS);
     }
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
-        if (true) {
-            return;
-        }
-        if (command instanceof RefreshType) {
-            boolean success = updateWeatherData();
-            if (success) {
-                switch (channelUID.getId()) {
-                    case CHANNEL_TEMPERATURE:
-                        updateState(channelUID, getTemperature());
-                        break;
-                    case CHANNEL_HUMIDITY:
-                        updateState(channelUID, getHumidity());
-                        break;
-                    case CHANNEL_PRESSURE:
-                        updateState(channelUID, getPressure());
-                        break;
-                    default:
-                        logger.debug("Command received for an unknown channel: {}", channelUID.getId());
-                        break;
-                }
-            }
-        } else {
-            logger.debug("Command {} is not supported for channel: {}", command, channelUID.getId());
-        }
-    }
-
-    @Override
-    public Collection<ConfigStatusMessage> getConfigStatus() {
-        Collection<ConfigStatusMessage> configStatus = new ArrayList<>();
-
-        final String locationData = cache.get(CACHE_KEY_CONFIG);
-        if (locationData != null) {
-            String city = getValue(locationData, "location", "city");
-            if (city == null) {
-                configStatus.add(ConfigStatusMessage.Builder.error(LOCATION_PARAM)
-                        .withMessageKeySuffix("location-not-found").withArguments(location.toPlainString()).build());
-            }
-        }
-
-        return configStatus;
-    }
-
-    private synchronized boolean updateWeatherData() {
-        final String data = cache.get(CACHE_KEY_WEATHER);
-        if (data != null) {
-            if (data.contains("\"results\":null")) {
-                if (isCurrentDataExpired()) {
-                    logger.trace(
-                            "The Yahoo Weather API did not return any data. Omiting the old result because it became too old.");
-                    weatherData = null;
-                    updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR,
-                            "@text/offline.no-data");
-                    return false;
-                } else {
-                    // simply keep the old data
-                    logger.trace("The Yahoo Weather API did not return any data. Keeping the old result.");
-                    return false;
-                }
-            } else {
-                lastUpdateTime = System.currentTimeMillis();
-                weatherData = data;
-            }
-            updateStatus(ThingStatus.ONLINE);
-            return true;
-        }
-        weatherData = null;
-        updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.OFFLINE.COMMUNICATION_ERROR,
-                "@text/offline.location [\"" + location.toPlainString() + "\"");
-        return false;
-    }
-
-    private boolean isCurrentDataExpired() {
-        return lastUpdateTime + MAX_DATA_AGE < System.currentTimeMillis();
-    }
-
-    private State getHumidity() {
-        if (weatherData != null) {
-            String humidity = getValue(weatherData, "atmosphere", "humidity");
-            if (humidity != null) {
-                return new DecimalType(humidity);
-            }
-        }
-        return UnDefType.UNDEF;
-    }
-
-    private State getPressure() {
-        if (weatherData != null) {
-            String pressure = getValue(weatherData, "atmosphere", "pressure");
-            if (pressure != null) {
-                DecimalType ret = new DecimalType(pressure);
-                if (ret.doubleValue() > 10000.0) {
-                    // Unreasonably high, record so far was 1085,8 hPa
-                    // The Yahoo API currently returns inHg values although it claims they are mbar - therefore convert
-                    ret = new DecimalType(BigDecimal.valueOf((long) (ret.doubleValue() / 0.3386388158), 2));
-                }
-                return ret;
-            }
-        }
-        return UnDefType.UNDEF;
-    }
-
-    private State getTemperature() {
-        if (weatherData != null) {
-            String temp = getValue(weatherData, "condition", "temp");
-            if (temp != null) {
-                return new DecimalType(temp);
-            }
-        }
-        return UnDefType.UNDEF;
-    }
-
-    private String getValue(String data, String element, String param) {
-        String tmp = StringUtils.substringAfter(data, element);
-        if (tmp != null) {
-            return StringUtils.substringBetween(tmp, param + "\":\"", "\"");
-        }
-        return null;
-    }
-
-    /**
-     * Function to convert a string into a JSON Node
-     *
-     * @param cmd json string
-     * @return null on errors
-     */
-    private JsonNode getNode(String cmd) {
-        try {
-            return objectMapper.readTree(cmd);
-        } catch (IOException e) {
-            logger.error("received invalid JSON: '" + cmd + "'");
-        }
-        return null;
+        // if (command instanceof RefreshType) {
+        // boolean success = updateWeatherData();
+        // if (success) {
+        // switch (channelUID.getId()) {
+        // case CHANNEL_TEMPERATURE:
+        // updateState(channelUID, getTemperature());
+        // break;
+        // case CHANNEL_HUMIDITY:
+        // updateState(channelUID, getHumidity());
+        // break;
+        // case CHANNEL_PRESSURE:
+        // updateState(channelUID, getPressure());
+        // break;
+        // default:
+        // logger.debug("Command received for an unknown channel: {}", channelUID.getId());
+        // break;
+        // }
+        // }
+        // } else {
+        // logger.debug("Command {} is not supported for channel: {}", command, channelUID.getId());
+        // }
     }
 
     @Override
@@ -302,6 +147,40 @@ public class PilightGatewayHandler extends ConfigStatusBridgeHandler implements 
             e.printStackTrace();
         }
 
+    }
+
+    @Override
+    public void statusChanged(Status status) {
+        switch (status) {
+            case INIT:
+                updateStatus(ThingStatus.OFFLINE);
+                pollConfigJob.cancel(true);
+                break;
+            case RUNNING:
+                updateStatus(ThingStatus.ONLINE);
+                String uuid = getThing().getUID().toString();
+                int first = uuid.length() - 21;
+                if (first < 0) {
+                    first = 0;
+                    // "0000-74-da-38-123456"
+                }
+
+                readerThread.sendRequest(String.format(setupChannel, uuid.substring(first, uuid.length() - 1)));
+                startConfigPolling();
+                break;
+            case TERMINATED:
+                updateStatus(ThingStatus.OFFLINE);
+                pollConfigJob.cancel(true);
+                break;
+            case WAITING:
+                updateStatus(ThingStatus.OFFLINE);
+                pollConfigJob.cancel(true);
+                break;
+            default:
+                updateStatus(ThingStatus.UNKNOWN);
+                pollConfigJob.cancel(true);
+                break;
+        }
     }
 
     /**
@@ -336,14 +215,7 @@ public class PilightGatewayHandler extends ConfigStatusBridgeHandler implements 
 
                 JsonNode configNode = subNode.get("devices");
                 if (configNode != null) {
-                    // todo: check for removed devices
-
-                    // it over dev.
-                    for (Thing thing : getThing().getThings()) {
-                        //
-                    }
-                    // new device found:
-
+                    readPilightConfiguration(configNode);
                 }
 
                 configNode = subNode.get("registry");
@@ -407,6 +279,25 @@ public class PilightGatewayHandler extends ConfigStatusBridgeHandler implements 
         }
     }
 
+    private void readPilightConfiguration(@NonNull JsonNode configNode) {
+        List<String> allKnownDevies = new ArrayList<String>(registeredDevices.keySet());
+        Iterator<Entry<String, JsonNode>> jsonDevices = configNode.fields();
+        while (jsonDevices.hasNext()) {
+            Map.Entry<String, JsonNode> jsonDevice = jsonDevices.next();
+            if (allKnownDevies.contains(jsonDevice.getKey())) {
+                allKnownDevies.remove(jsonDevice.getKey());
+                // remove found device
+                registeredDevices.get(jsonDevice.getKey()).notifyStatus(DeviceStatus.FoundInConfig);
+            } else {
+                // new device
+                // TODO: use this for auto - discover
+            }
+        }
+        for (String removedDevice : allKnownDevies) {
+            registeredDevices.get(removedDevice).notifyStatus(DeviceStatus.NotFoundInConfig);
+        }
+    }
+
     private Double tryReadDoubleValue(JsonNode node, String valueName) {
         JsonNode valueNode = node.get("values");
         if (valueNode != null) {
@@ -431,33 +322,37 @@ public class PilightGatewayHandler extends ConfigStatusBridgeHandler implements 
         return null;
     }
 
-    @Override
-    public void statusChanged(Status status) {
-        switch (status) {
-            case INIT:
-                updateStatus(ThingStatus.OFFLINE);
-                break;
-            case RUNNING:
-                updateStatus(ThingStatus.ONLINE);
-                String uuid = getThing().getUID().toString();
-                int first = uuid.length() - 21;
-                if (first < 0) {
-                    first = 0;
-                    // "0000-74-da-38-123456"
-                }
-
-                readerThread.sendRequest(String.format(setupChannel, uuid.substring(first, uuid.length() - 1)));
-                readerThread.sendRequest(requestConfig);
-                break;
-            case TERMINATED:
-                updateStatus(ThingStatus.OFFLINE);
-                break;
-            case WAITING:
-                updateStatus(ThingStatus.OFFLINE);
-                break;
-            default:
-                updateStatus(ThingStatus.UNKNOWN);
-                break;
+    @NonNull
+    public PilightDeviceHandler getOrCreateDeviceHandler(String pilightDeviceName,
+            IPilightDeviceHandlerCallback callback) {
+        if (!registeredDevices.containsKey(pilightDeviceName)) {
+            registeredDevices.put(pilightDeviceName, new PilightDeviceHandler(pilightDeviceName, this, callback));
         }
+        return registeredDevices.get(pilightDeviceName);
     }
+
+    /**
+     * Function to convert a string into a JSON Node
+     *
+     * @param cmd json string
+     * @return null on errors
+     */
+    private JsonNode getNode(String cmd) {
+        try {
+            return objectMapper.readTree(cmd);
+        } catch (IOException e) {
+            logger.error("received invalid JSON: '" + cmd + "'");
+        }
+        return null;
+    }
+
+    private void startConfigPolling() {
+        if (pollConfigJob != null && !pollConfigJob.isDone()) {
+            pollConfigJob.cancel(true);
+        }
+        pollConfigJob = scheduler.scheduleWithFixedDelay(() -> {
+            readerThread.sendRequest(requestConfig);
+        }, 0, cfg.configUpdadeInverval, TimeUnit.MINUTES);
+    }
+
 }

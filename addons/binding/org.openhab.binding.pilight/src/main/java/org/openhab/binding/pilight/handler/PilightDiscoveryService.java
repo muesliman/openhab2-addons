@@ -11,16 +11,17 @@ import org.slf4j.LoggerFactory;
 
 @Component(service = DiscoveryService.class, immediate = false, configurationPid = "discovery.pilight")
 public class PilightDiscoveryService extends AbstractDiscoveryService {
-    private final Logger logger = LoggerFactory.getLogger(PilightGatewayHandler.class);
-    private IDiscover discoverHandler;
+    private final Logger logger = LoggerFactory.getLogger(PilightDiscoveryService.class);
+
+    private PilightGatewayHandler discoverHandler;
 
     public PilightDiscoveryService() {
         super(100);
     }
 
-    public PilightDiscoveryService(IDiscover discoverHandler) {
+    public PilightDiscoveryService(PilightGatewayHandler gwHandler) {
         super(100);
-        this.discoverHandler = discoverHandler;
+        this.discoverHandler = gwHandler;
 
     }
 

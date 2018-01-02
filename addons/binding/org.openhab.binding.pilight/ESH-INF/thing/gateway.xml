@@ -52,6 +52,12 @@
                 <description>polling interval</description>
                 <default>5000</default>
             </parameter>
+            <parameter name="configUpdadeInverval" type="integer" required="false" min="1" unit="min" groupName="connection">
+                <label>update inverval for config</label>
+                <description>polling interval for pilight device configuration</description>
+                <default>60</default>
+            </parameter>
+            
 	    </config-description>
     </bridge-type>
 

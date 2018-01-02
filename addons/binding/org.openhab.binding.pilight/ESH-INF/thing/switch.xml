@@ -22,10 +22,15 @@
         </properties>
 
         <config-description>
-	        <parameter-group name="deviceName">
-	            <label>PilightDeviceName</label>
-	            <description>name of the device given in the pilight config</description>
+	        <parameter-group name="pilightParameter">
+	            <label>Pilight parameter</label>
+	            <description>Reference to pilight configuration</description>
 	        </parameter-group>
+	        <parameter name="pilightDeviceName" type="text" required="true" groupName="pilightParameter">
+                <label>Pilight device name</label>
+                <default>Device_A</default>
+                <description>name of the device given in the pilight config</description>
+            </parameter>
 	    </config-description>
     </thing-type>
 

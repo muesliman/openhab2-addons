@@ -1,5 +1,5 @@
 package org.openhab.binding.pilight.handler;
 
-public interface IDiscover {
+public interface ISwitchCallback {
 
 }
