@@ -3,9 +3,10 @@ package org.openhab.binding.pilight.internal;
 public interface IPilightDeviceHandlerCallback {
 
     public enum DeviceStatus {
-        Init,
-        FoundInConfig,
-        NotFoundInConfig
+        INIT,
+        ONLINE,
+        GATEWAY_OFFLINE,
+        NOT_FOUND_IN_CONFIG
     }
 
     String getDeviceName();

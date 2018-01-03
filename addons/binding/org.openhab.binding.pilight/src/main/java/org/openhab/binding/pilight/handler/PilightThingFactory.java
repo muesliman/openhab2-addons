@@ -24,12 +24,12 @@ import org.openhab.binding.pilight.PilightBindingConstants;
 import org.openhab.binding.pilight.discovery.PilightDiscoveryService;
 
 /**
- * The {@link PilightHandlerFactory} is responsible for creating things and thing
+ * The {@link PilightThingFactory} is responsible for creating things and thing
  * handlers.
  *
  * @author muesliman/sja - Initial contribution
  */
-public class PilightHandlerFactory extends BaseThingHandlerFactory {
+public class PilightThingFactory extends BaseThingHandlerFactory {
 
     @Override
     public boolean supportsThingType(ThingTypeUID thingTypeUID) {
@@ -41,13 +41,13 @@ public class PilightHandlerFactory extends BaseThingHandlerFactory {
         ThingTypeUID thingTypeUID = thing.getThingTypeUID();
 
         if (thingTypeUID.equals(PilightBindingConstants.THING_TYPE_GATEWAY)) {
-            PilightGatewayHandler gwHandler = new PilightGatewayHandler((Bridge) thing);
+            ThingHandlerGateway gwHandler = new ThingHandlerGateway((Bridge) thing);
             getBundleContext().registerService(DiscoveryService.class.getName(), new PilightDiscoveryService(gwHandler),
                     new Hashtable<String, Object>());
             return gwHandler;
 
         } else if (thingTypeUID.equals(PilightBindingConstants.THING_TYPE_SWITCH)) {
-            return new PilightSwitchHandler(thing);
+            return new ThingHandlerSwitch(thing);
         }
 
         return null;

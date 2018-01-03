@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.net.Socket;
 
-import org.openhab.binding.pilight.internal.IReadCallbacks.Status;
+import org.openhab.binding.pilight.internal.IReadThreadCallbacks.ReadThreadStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +20,7 @@ public class ReaderThread extends Thread {
 
     private String server;
     private int port;
-    private IReadCallbacks callbacks;
+    private IReadThreadCallbacks callbacks;
 
     private Socket socket = null;
     private PrintStream ws = null;
@@ -48,7 +48,7 @@ public class ReaderThread extends Thread {
      * @param maxHeartBeatFailedCnt
      * @param heartBeatIntervalMs
      */
-    public ReaderThread(String server, int port, IReadCallbacks callbacks, int maxHeartBeatFailedCnt,
+    public ReaderThread(String server, int port, IReadThreadCallbacks callbacks, int maxHeartBeatFailedCnt,
             int heartBeatIntervalMs) {
         this(server, port, callbacks);
         this.maxHeartBeatFailedCnt = maxHeartBeatFailedCnt;
@@ -62,13 +62,11 @@ public class ReaderThread extends Thread {
      * @param port
      * @param callbacks
      */
-    public ReaderThread(String server, int port, IReadCallbacks callbacks) {
+    public ReaderThread(String server, int port, IReadThreadCallbacks callbacks) {
         this.server = server;
         this.port = port;
         this.callbacks = callbacks;
 
-        // try to connect. if it fails there is a retry while running (Thread)
-        reconnect();
     }
 
     /**
@@ -152,6 +150,7 @@ public class ReaderThread extends Thread {
      */
     @Override
     public void run() {
+        reconnect();
         try {
             receiveThread();
         } catch (InterruptedException e) {
@@ -252,6 +251,7 @@ public class ReaderThread extends Thread {
         ReceiveFsm state = ReceiveFsm.INIT;
         ReceiveFsm prevState = ReceiveFsm.READY; // other to state
         boolean isConnected = false;
+        int connectCnt = 0;
         threadKill = true; // Initial FSM shall run
 
         while (threadKill) {
@@ -263,16 +263,23 @@ public class ReaderThread extends Thread {
 
             switch (state) {
                 case INIT:
+                    connectCnt = 0;
                     closeSocket();
                     // fall through
                 case WAIT:
                     state = ReceiveFsm.WAIT;
                     receivedCharBuffer.setLength(0); // reset all received data
                     if (isConnected) {
+                        connectCnt = 0;
                         state = ReceiveFsm.READY;
                     } else {
                         sleep(5000);
-                        reconnect();
+                        connectCnt++;
+                        if (connectCnt > 5) {
+                            state = ReceiveFsm.INIT;
+                        } else {
+                            reconnect();
+                        }
                     }
                     break;
                 case READY:
@@ -296,16 +303,16 @@ public class ReaderThread extends Thread {
                 prevState = state;
                 switch (state) {
                     case INIT:
-                        callbacks.statusChanged(Status.INIT);
+                        callbacks.readThreadStatusChanged(ReadThreadStatus.INIT);
                         break;
                     case READY:
-                        callbacks.statusChanged(Status.RUNNING);
+                        callbacks.readThreadStatusChanged(ReadThreadStatus.RUNNING);
                         break;
                     case WAIT:
-                        callbacks.statusChanged(Status.WAITING);
+                        callbacks.readThreadStatusChanged(ReadThreadStatus.WAITING);
                         break;
                     default:
-                        callbacks.statusChanged(Status.INIT);
+                        callbacks.readThreadStatusChanged(ReadThreadStatus.INIT);
                         break;
                 }
 
@@ -313,7 +320,7 @@ public class ReaderThread extends Thread {
 
         }
         logger.info("reading was regular stopped");
-        callbacks.statusChanged(Status.TERMINATED);
+        callbacks.readThreadStatusChanged(ReadThreadStatus.TERMINATED);
     }
 
 }

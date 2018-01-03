@@ -5,7 +5,7 @@ import org.eclipse.smarthome.config.discovery.DiscoveryResult;
 import org.eclipse.smarthome.config.discovery.DiscoveryResultBuilder;
 import org.eclipse.smarthome.config.discovery.DiscoveryService;
 import org.eclipse.smarthome.core.thing.ThingUID;
-import org.openhab.binding.pilight.handler.PilightGatewayHandler;
+import org.openhab.binding.pilight.handler.ThingHandlerGateway;
 import org.osgi.service.component.annotations.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,13 +14,13 @@ import org.slf4j.LoggerFactory;
 public class PilightDiscoveryService extends AbstractDiscoveryService {
     private final Logger logger = LoggerFactory.getLogger(PilightDiscoveryService.class);
 
-    private PilightGatewayHandler discoverHandler;
+    private ThingHandlerGateway discoverHandler;
 
     public PilightDiscoveryService() {
         super(100);
     }
 
-    public PilightDiscoveryService(PilightGatewayHandler gwHandler) {
+    public PilightDiscoveryService(ThingHandlerGateway gwHandler) {
         super(100);
         this.discoverHandler = gwHandler;
 

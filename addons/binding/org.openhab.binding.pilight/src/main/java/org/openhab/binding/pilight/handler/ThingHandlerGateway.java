@@ -26,38 +26,39 @@ import org.eclipse.smarthome.core.types.Command;
 import org.eclipse.smarthome.core.types.State;
 import org.openhab.binding.pilight.PilightGatewayConfig;
 import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback;
-import org.openhab.binding.pilight.internal.PilightInstance;
+import org.openhab.binding.pilight.internal.IPilightServerHandlerCallback;
+import org.openhab.binding.pilight.internal.PilightServerHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The {@link PilightGatewayHandler} is responsible for handling commands, which are
+ * The {@link ThingHandlerGateway} is responsible for handling commands, which are
  * sent to one of the channels.
  *
  * @author muesliman/sja initial
  *
  */
-public class PilightGatewayHandler extends BaseBridgeHandler {
+public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightServerHandlerCallback {
 
-    private final Logger logger = LoggerFactory.getLogger(PilightGatewayHandler.class);
+    private final Logger logger = LoggerFactory.getLogger(ThingHandlerGateway.class);
     private ScheduledFuture<?> pollConfigJob;
     private PilightGatewayConfig cfg;
-    private PilightInstance pilightInstance;
+    private PilightServerHandler pilightInstance;
 
-    public PilightGatewayHandler(Bridge thing) {
+    public ThingHandlerGateway(Bridge thing) {
         super(thing);
     }
 
     @Override
     public void initialize() {
-        updateStatus(ThingStatus.UNKNOWN);
         logger.debug("Initializing PilightGatewayHandler handler.");
         cfg = getThing().getConfiguration().as(PilightGatewayConfig.class);
         logger.debug("config: " + cfg);
+        pilightInstance = new PilightServerHandler();
 
-        pilightInstance = new PilightInstance();
         pilightInstance.initialize(this, cfg);
-        startConfigPolling();
+        updateStatus(ThingStatus.UNKNOWN); // init complete
+        pilightInstance.start();
     }
 
     @Override
@@ -98,25 +99,44 @@ public class PilightGatewayHandler extends BaseBridgeHandler {
         // }
     }
 
-    public void writeThingStatus(@NonNull ThingStatus status) {
-        updateStatus(status);
+    @Override
+    public void handlerStatusChanged(HandlerStatus status) {
+        if (status == IPilightServerHandlerCallback.HandlerStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
+            startConfigPolling();
+        } else {
+            stopConfigPolling();
+            updateStatus(ThingStatus.OFFLINE);
+        }
     }
 
+    @Override
     public void writeProperty(@NonNull String property, @NonNull String value) {
         getThing().setProperty(property, value);
     }
 
+    @Override
     public void writeChannel(@NonNull String channel, @NonNull State value) {
         updateState(new ChannelUID(getThing().getUID(), channel), value);
     }
 
-    private void startConfigPolling() {
+    private void stopConfigPolling() {
         if (pollConfigJob != null && !pollConfigJob.isDone()) {
             pollConfigJob.cancel(true);
         }
+    }
+
+    private void startConfigPolling() {
+        stopConfigPolling();
+
         pollConfigJob = scheduler.scheduleWithFixedDelay(() -> {
             pilightInstance.requestConfig();
         }, 0, cfg.configUpdadeInverval, TimeUnit.MINUTES);
+    }
+
+    @Override
+    public String getUID() {
+        return getThing().getUID().toString();
     }
 
 }

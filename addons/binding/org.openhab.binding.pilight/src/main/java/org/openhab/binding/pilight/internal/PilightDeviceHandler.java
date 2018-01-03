@@ -4,15 +4,15 @@ import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback.Device
 
 public class PilightDeviceHandler {
     private String pilightDeviceName;
-    private PilightInstance pilightInstance;
+    private PilightServerHandler pilightInstance;
     private IPilightDeviceHandlerCallback callback;
-    private DeviceStatus status = DeviceStatus.Init;
+    private DeviceStatus status = DeviceStatus.INIT;
 
     public String getPilightDeviceName() {
         return pilightDeviceName;
     }
 
-    public PilightDeviceHandler(String pilightDeviceName, PilightInstance pilightInstance,
+    public PilightDeviceHandler(String pilightDeviceName, PilightServerHandler pilightInstance,
             IPilightDeviceHandlerCallback callback) {
         this.pilightDeviceName = pilightDeviceName;
         this.pilightInstance = pilightInstance;
@@ -28,7 +28,7 @@ public class PilightDeviceHandler {
         }
     }
 
-    public PilightInstance getPilightInstance() {
+    public PilightServerHandler getPilightInstance() {
         return pilightInstance;
     }
 

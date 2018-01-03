@@ -24,10 +24,9 @@ import java.util.Map.Entry;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.smarthome.core.library.types.DecimalType;
-import org.eclipse.smarthome.core.thing.ThingStatus;
 import org.openhab.binding.pilight.PilightGatewayConfig;
-import org.openhab.binding.pilight.handler.PilightGatewayHandler;
 import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback.DeviceStatus;
+import org.openhab.binding.pilight.internal.IPilightServerHandlerCallback.HandlerStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,35 +36,35 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * The {@link PilightInstance} is responsible for handling commands, which are
+ * The {@link PilightServerHandler} is responsible for handling commands, which are
  * sent to one of the channels.
  *
  * @author muesliman/sja initial
  *
  */
-public class PilightInstance implements IReadCallbacks {
+public class PilightServerHandler implements IReadThreadCallbacks {
 
     private final String setupChannel = "{\"action\": \"identify\", \"options\": { \"core\": 1, \"receiver\": 1, \"config\": 1, \"forward\": 0, \"stats\" : 1 }, \"uuid\": \"%s\", \"media\": \"all\"}";
     private final String requestConfig = "{\"action\": \"request config\"}";
     private final String requestValues = "{\"action\": \"request values\"}";
 
-    private final Logger logger = LoggerFactory.getLogger(PilightInstance.class);
+    private final Logger logger = LoggerFactory.getLogger(PilightServerHandler.class);
 
     private final Map<String, PilightDeviceHandler> registeredDevices = new HashMap<String, PilightDeviceHandler>();
 
-    private PilightGatewayHandler pilightGatewayHandler;
+    private IPilightServerHandlerCallback pilightGatewayHandler;
     private PilightGatewayConfig cfg;
 
     private String requestUid = "oh2";
     private ReaderThread readerThread;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public void initialize(PilightGatewayHandler pilightGatewayHandler, PilightGatewayConfig cfg) {
+    public void initialize(IPilightServerHandlerCallback pilightGatewayHandler, PilightGatewayConfig cfg) {
         logger.debug("Initializing PilightInstance.");
         this.cfg = cfg;
         this.pilightGatewayHandler = pilightGatewayHandler;
 
-        String uuid = pilightGatewayHandler.getThing().getUID().toString();
+        String uuid = pilightGatewayHandler.getUID();
         int first = uuid.length() - 21; // max len from PILIGHT
         if (first < 0) {
             first = 0;
@@ -73,6 +72,9 @@ public class PilightInstance implements IReadCallbacks {
         requestUid = uuid.substring(first, uuid.length() - 1);
 
         readerThread = new ReaderThread(cfg.ipAddress, cfg.port, this);
+    }
+
+    public void start() {
         readerThread.start();
     }
 
@@ -206,14 +208,14 @@ public class PilightInstance implements IReadCallbacks {
             if (allKnownDevies.contains(jsonDevice.getKey())) {
                 allKnownDevies.remove(jsonDevice.getKey());
                 // remove found device
-                registeredDevices.get(jsonDevice.getKey()).notifyStatus(DeviceStatus.FoundInConfig);
+                registeredDevices.get(jsonDevice.getKey()).notifyStatus(DeviceStatus.ONLINE);
             } else {
                 // new device
                 // TODO: use this for auto - discover
             }
         }
         for (String removedDevice : allKnownDevies) {
-            registeredDevices.get(removedDevice).notifyStatus(DeviceStatus.NotFoundInConfig);
+            registeredDevices.get(removedDevice).notifyStatus(DeviceStatus.NOT_FOUND_IN_CONFIG);
         }
     }
 
@@ -242,24 +244,21 @@ public class PilightInstance implements IReadCallbacks {
     }
 
     @Override
-    public void statusChanged(Status status) {
+    public void readThreadStatusChanged(ReadThreadStatus status) {
         switch (status) {
-            case INIT:
-                pilightGatewayHandler.writeThingStatus(ThingStatus.OFFLINE);
-                break;
             case RUNNING:
-                pilightGatewayHandler.writeThingStatus(ThingStatus.ONLINE);
                 readerThread.sendRequest(String.format(setupChannel, requestUid));
                 readerThread.sendRequest(requestConfig);
+                pilightGatewayHandler.handlerStatusChanged(HandlerStatus.ONLINE);
                 break;
             case TERMINATED:
-                pilightGatewayHandler.writeThingStatus(ThingStatus.OFFLINE);
-                break;
             case WAITING:
-                pilightGatewayHandler.writeThingStatus(ThingStatus.OFFLINE);
-                break;
+            case INIT:
             default:
-                pilightGatewayHandler.writeThingStatus(ThingStatus.UNKNOWN);
+                pilightGatewayHandler.handlerStatusChanged(HandlerStatus.OFFLINE);
+                for (PilightDeviceHandler dev : registeredDevices.values()) {
+                    dev.notifyStatus(DeviceStatus.GATEWAY_OFFLINE);
+                }
                 break;
         }
     }
