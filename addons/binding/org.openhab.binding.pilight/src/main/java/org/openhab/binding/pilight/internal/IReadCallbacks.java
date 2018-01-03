@@ -1,4 +1,4 @@
-package org.openhab.binding.pilight.handler;
+package org.openhab.binding.pilight.internal;
 
 public interface IReadCallbacks {
 

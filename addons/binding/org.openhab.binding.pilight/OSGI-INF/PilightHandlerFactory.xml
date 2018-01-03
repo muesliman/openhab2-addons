@@ -13,9 +13,9 @@
     SPDX-License-Identifier: EPL-2.0
 
 -->
-<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" immediate="true" name="org.openhab.binding.pilight.internal.PilightHandlerFactory">
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" immediate="true" name="org.openhab.binding.pilight.handler.PilightHandlerFactory">
 
-   <implementation class="org.openhab.binding.pilight.internal.PilightHandlerFactory"/>
+   <implementation class="org.openhab.binding.pilight.handler.PilightHandlerFactory"/>
 
    <service>
       <provide interface="org.eclipse.smarthome.core.thing.binding.ThingHandlerFactory"/>

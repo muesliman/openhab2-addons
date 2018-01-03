@@ -34,7 +34,11 @@ import org.eclipse.smarthome.core.thing.binding.BaseBridgeHandler;
 import org.eclipse.smarthome.core.thing.binding.ThingHandler;
 import org.eclipse.smarthome.core.types.Command;
 import org.openhab.binding.pilight.PilightGatewayConfig;
-import org.openhab.binding.pilight.handler.IPilightDeviceHandlerCallback.DeviceStatus;
+import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback;
+import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback.DeviceStatus;
+import org.openhab.binding.pilight.internal.IReadCallbacks;
+import org.openhab.binding.pilight.internal.PilightDeviceHandler;
+import org.openhab.binding.pilight.internal.ReaderThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,10 +51,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * The {@link PilightGatewayHandler} is responsible for handling commands, which are
  * sent to one of the channels.
  *
- * @author Kai Kreuzer - Initial contribution
- * @author Stefan Bußweiler - Integrate new thing status handling
- * @author Thomas Höfer - Added config status provider
- * @author Christoph Weitkamp - Changed use of caching utils to ESH ExpiringCacheMap
+ * @author muesliman/sja initial
  *
  */
 public class PilightGatewayHandler extends BaseBridgeHandler implements IReadCallbacks {

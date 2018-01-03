@@ -1,11 +1,11 @@
-package org.openhab.binding.pilight.handler;
+package org.openhab.binding.pilight.internal;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.Socket;
 
-import org.openhab.binding.pilight.handler.IReadCallbacks.Status;
+import org.openhab.binding.pilight.internal.IReadCallbacks.Status;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -252,7 +252,7 @@ public class ReaderThread extends Thread {
         ReceiveFsm state = ReceiveFsm.INIT;
         ReceiveFsm prevState = ReceiveFsm.READY; // other to state
         boolean isConnected = false;
-        threadKill = true; // inital FSM shall run
+        threadKill = true; // Initial FSM shall run
 
         while (threadKill) {
             if (socket == null) {

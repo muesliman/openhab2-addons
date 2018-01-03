@@ -1,6 +1,7 @@
-package org.openhab.binding.pilight.handler;
+package org.openhab.binding.pilight.internal;
 
-import org.openhab.binding.pilight.handler.IPilightDeviceHandlerCallback.DeviceStatus;
+import org.openhab.binding.pilight.handler.PilightGatewayHandler;
+import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback.DeviceStatus;
 
 public class PilightDeviceHandler {
     private String pilightDeviceName;

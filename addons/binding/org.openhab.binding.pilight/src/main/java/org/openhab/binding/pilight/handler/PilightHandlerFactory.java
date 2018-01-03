@@ -10,7 +10,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  */
-package org.openhab.binding.pilight.internal;
+package org.openhab.binding.pilight.handler;
 
 import java.util.Hashtable;
 
@@ -21,15 +21,13 @@ import org.eclipse.smarthome.core.thing.ThingTypeUID;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandlerFactory;
 import org.eclipse.smarthome.core.thing.binding.ThingHandler;
 import org.openhab.binding.pilight.PilightBindingConstants;
-import org.openhab.binding.pilight.handler.PilightDiscoveryService;
-import org.openhab.binding.pilight.handler.PilightGatewayHandler;
-import org.openhab.binding.pilight.handler.PilightSwitchHandler;
+import org.openhab.binding.pilight.discovery.PilightDiscoveryService;
 
 /**
  * The {@link PilightHandlerFactory} is responsible for creating things and thing
  * handlers.
  *
- * @author Kai Kreuzer - Initial contribution
+ * @author muesliman/sja - Initial contribution
  */
 public class PilightHandlerFactory extends BaseThingHandlerFactory {
 

@@ -7,6 +7,8 @@ import org.eclipse.smarthome.core.thing.ThingStatusDetail;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
 import org.openhab.binding.pilight.PilightDeviceConfig;
+import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback;
+import org.openhab.binding.pilight.internal.PilightDeviceHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
