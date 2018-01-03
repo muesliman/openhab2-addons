@@ -1,11 +1,10 @@
 package org.openhab.binding.pilight.internal;
 
-import org.openhab.binding.pilight.handler.PilightGatewayHandler;
 import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback.DeviceStatus;
 
 public class PilightDeviceHandler {
     private String pilightDeviceName;
-    private PilightGatewayHandler devHandler;
+    private PilightInstance pilightInstance;
     private IPilightDeviceHandlerCallback callback;
     private DeviceStatus status = DeviceStatus.Init;
 
@@ -13,10 +12,10 @@ public class PilightDeviceHandler {
         return pilightDeviceName;
     }
 
-    public PilightDeviceHandler(String pilightDeviceName, PilightGatewayHandler devHandler,
+    public PilightDeviceHandler(String pilightDeviceName, PilightInstance pilightInstance,
             IPilightDeviceHandlerCallback callback) {
         this.pilightDeviceName = pilightDeviceName;
-        this.devHandler = devHandler;
+        this.pilightInstance = pilightInstance;
         this.callback = callback;
     }
 
@@ -28,4 +27,9 @@ public class PilightDeviceHandler {
             }
         }
     }
+
+    public PilightInstance getPilightInstance() {
+        return pilightInstance;
+    }
+
 }
