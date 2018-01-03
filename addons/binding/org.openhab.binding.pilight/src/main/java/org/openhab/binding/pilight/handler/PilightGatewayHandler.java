@@ -59,6 +59,7 @@ public class PilightGatewayHandler extends BaseBridgeHandler implements IReadCal
     private final String requestConfig = "{\"action\": \"request config\"}";
     private final String requestValues = "{\"action\": \"request values\"}";
 
+    private String requestUid = "oh2";
     private final Logger logger = LoggerFactory.getLogger(PilightGatewayHandler.class);
 
     private final Map<String, PilightDeviceHandler> registeredDevices = new HashMap<String, PilightDeviceHandler>();
@@ -81,6 +82,13 @@ public class PilightGatewayHandler extends BaseBridgeHandler implements IReadCal
         logger.debug("Initializing PilightGatewayHandler handler.");
         cfg = getThing().getConfiguration().as(PilightGatewayConfig.class);
         logger.debug("config: " + cfg);
+        String uuid = getThing().getUID().toString();
+        int first = uuid.length() - 21;
+        if (first < 0) {
+            first = 0;
+            // "0000-74-da-38-123456"
+        }
+        requestUid = uuid.substring(first, uuid.length() - 1);
 
         readerThread = new ReaderThread(cfg.ipAddress, cfg.port, this);
         readerThread.start();
@@ -147,40 +155,6 @@ public class PilightGatewayHandler extends BaseBridgeHandler implements IReadCal
             e.printStackTrace();
         }
 
-    }
-
-    @Override
-    public void statusChanged(Status status) {
-        switch (status) {
-            case INIT:
-                updateStatus(ThingStatus.OFFLINE);
-                pollConfigJob.cancel(true);
-                break;
-            case RUNNING:
-                updateStatus(ThingStatus.ONLINE);
-                String uuid = getThing().getUID().toString();
-                int first = uuid.length() - 21;
-                if (first < 0) {
-                    first = 0;
-                    // "0000-74-da-38-123456"
-                }
-
-                readerThread.sendRequest(String.format(setupChannel, uuid.substring(first, uuid.length() - 1)));
-                startConfigPolling();
-                break;
-            case TERMINATED:
-                updateStatus(ThingStatus.OFFLINE);
-                pollConfigJob.cancel(true);
-                break;
-            case WAITING:
-                updateStatus(ThingStatus.OFFLINE);
-                pollConfigJob.cancel(true);
-                break;
-            default:
-                updateStatus(ThingStatus.UNKNOWN);
-                pollConfigJob.cancel(true);
-                break;
-        }
     }
 
     /**
@@ -320,6 +294,29 @@ public class PilightGatewayHandler extends BaseBridgeHandler implements IReadCal
             }
         }
         return null;
+    }
+
+    @Override
+    public void statusChanged(Status status) {
+        switch (status) {
+            case INIT:
+                updateStatus(ThingStatus.OFFLINE);
+                break;
+            case RUNNING:
+                updateStatus(ThingStatus.ONLINE);
+                readerThread.sendRequest(String.format(setupChannel, requestUid));
+                readerThread.sendRequest(requestConfig);
+                break;
+            case TERMINATED:
+                updateStatus(ThingStatus.OFFLINE);
+                break;
+            case WAITING:
+                updateStatus(ThingStatus.OFFLINE);
+                break;
+            default:
+                updateStatus(ThingStatus.UNKNOWN);
+                break;
+        }
     }
 
     @NonNull
