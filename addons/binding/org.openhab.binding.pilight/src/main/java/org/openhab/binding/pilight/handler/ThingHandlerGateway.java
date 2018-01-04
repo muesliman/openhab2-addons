@@ -12,6 +12,7 @@
  */
 package org.openhab.binding.pilight.handler;
 
+import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -20,12 +21,15 @@ import org.eclipse.smarthome.core.thing.Bridge;
 import org.eclipse.smarthome.core.thing.ChannelUID;
 import org.eclipse.smarthome.core.thing.Thing;
 import org.eclipse.smarthome.core.thing.ThingStatus;
+import org.eclipse.smarthome.core.thing.ThingStatusDetail;
 import org.eclipse.smarthome.core.thing.binding.BaseBridgeHandler;
 import org.eclipse.smarthome.core.thing.binding.ThingHandler;
+import org.eclipse.smarthome.core.thing.binding.builder.ThingStatusInfoBuilder;
 import org.eclipse.smarthome.core.types.Command;
+import org.eclipse.smarthome.core.types.RefreshType;
 import org.eclipse.smarthome.core.types.State;
+import org.openhab.binding.pilight.PilightBindingConstants;
 import org.openhab.binding.pilight.PilightGatewayConfig;
-import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback;
 import org.openhab.binding.pilight.internal.IPilightGatewayHandlerCallback;
 import org.openhab.binding.pilight.internal.PilightServerHandler;
 import org.slf4j.Logger;
@@ -41,6 +45,8 @@ import org.slf4j.LoggerFactory;
 public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGatewayHandlerCallback {
 
     private final Logger logger = LoggerFactory.getLogger(ThingHandlerGateway.class);
+    private static final String STATUS_DEVICE_NOT_FOUND_IN_PILIGHT_CONFIGURATION = "Device '%s' not found in Pilight configuration";
+
     private ScheduledFuture<?> pollConfigJob;
     private PilightGatewayConfig cfg;
     private PilightServerHandler pilightInstance;
@@ -63,8 +69,6 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGa
 
     @Override
     public void childHandlerInitialized(ThingHandler childHandler, Thing childThing) {
-        IPilightDeviceHandlerCallback devHandler = (IPilightDeviceHandlerCallback) childHandler;
-        pilightInstance.initializeDevice(devHandler);
         pilightInstance.requestConfig();
     }
 
@@ -75,50 +79,111 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGa
     }
 
     @Override
+    public void handleUpdate(ChannelUID channelUID, State newState) {
+        switch (channelUID.getId()) {
+            case PilightBindingConstants.CHANNEL_CONFIG_TRIGGER:
+
+                pilightInstance.requestConfig();
+
+                break;
+        }
+
+    }
+
+    @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
 
         // if (command instanceof RefreshType) {
         // boolean success = updateWeatherData();
         // if (success) {
-        // switch (channelUID.getId()) {
-        // case CHANNEL_TEMPERATURE:
-        // updateState(channelUID, getTemperature());
-        // break;
-        // case CHANNEL_HUMIDITY:
-        // updateState(channelUID, getHumidity());
-        // break;
-        // case CHANNEL_PRESSURE:
-        // updateState(channelUID, getPressure());
-        // break;
-        // default:
-        // logger.debug("Command received for an unknown channel: {}", channelUID.getId());
-        // break;
-        // }
-        // }
-        // } else {
-        // logger.debug("Command {} is not supported for channel: {}", command, channelUID.getId());
-        // }
-    }
-
-    @Override
-    public void onStatusChanged(GatewayStatus status) {
-        if (status == IPilightGatewayHandlerCallback.GatewayStatus.ONLINE) {
-            updateStatus(ThingStatus.ONLINE);
-            startConfigPolling();
-        } else {
-            stopConfigPolling();
-            updateStatus(ThingStatus.OFFLINE);
+        switch (channelUID.getId()) {
+            case PilightBindingConstants.CHANNEL_CONFIG_TRIGGER:
+                if (command instanceof RefreshType) {
+                    pilightInstance.requestConfig();
+                }
+                break;
+            // case CHANNEL_TEMPERATURE:
+            // updateState(channelUID, getTemperature());
+            // break;
+            // case CHANNEL_HUMIDITY:
+            // updateState(channelUID, getHumidity());
+            // break;
+            // case CHANNEL_PRESSURE:
+            // updateState(channelUID, getPressure());
+            // break;
+            // default:
+            // logger.debug("Command received for an unknown channel: {}", channelUID.getId());
+            // break;
+            // }
+            // }
+            // } else {
+            // logger.debug("Command {} is not supported for channel: {}", command, channelUID.getId());
         }
     }
 
     @Override
-    public void writeProperty(@NonNull String property, @NonNull String value) {
+    public void onGatewayStatusChanged(GatewayStatus status) {
+        if (status == IPilightGatewayHandlerCallback.GatewayStatus.ONLINE) {
+            updateStatus(ThingStatus.ONLINE);
+            for (Thing subItems : this.getThing().getThings()) {
+                subItems.setStatusInfo(ThingStatusInfoBuilder.create(ThingStatus.UNKNOWN).build());
+            }
+            startConfigPolling();
+        } else {
+            stopConfigPolling();
+            updateStatus(ThingStatus.OFFLINE);
+            for (Thing subItems : this.getThing().getThings()) {
+                subItems.setStatusInfo(
+                        ThingStatusInfoBuilder.create(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE).build());
+            }
+        }
+    }
+
+    @Override
+    public void writeGatewayProperty(@NonNull String property, @NonNull String value) {
         getThing().setProperty(property, value);
     }
 
     @Override
-    public void writeChannel(@NonNull String channel, @NonNull State value) {
+    public void writeGatewayChannel(@NonNull String channel, @NonNull State value) {
         updateState(new ChannelUID(getThing().getUID(), channel), value);
+    }
+
+    @Override
+    public void onDeviceConfigReceived(List<String> devList) {
+        // switch (status) {
+        // case GATEWAY_OFFLINE:
+        // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
+        // break;
+        // case GATEWAY_ONLINE_CONFIG_PENGING:
+        // updateStatus(ThingStatus.UNKNOWN);
+        // break;
+        // case GATEWAY_ONLINE_FOUND_IN_CONFIG:
+        // updateStatus(ThingStatus.ONLINE);
+        // break;
+        // case GATEWAY_ONLINE_NOT_FOUND_IN_CONFIG:
+        // updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
+        // String.format(STATUS_DEVICE_NOT_FOUND_IN_PILIGHT_CONFIGURATION, cfg.pilightDeviceName));
+        // break;
+        // default:
+        // updateStatus(ThingStatus.UNKNOWN);
+        // break;
+        // }
+        for (Thing subItems : this.getThing().getThings()) {
+
+            if (subItems.getHandler() instanceof ThingHandlerDevice) {
+                ThingHandlerDevice dev = (ThingHandlerDevice) subItems.getHandler();
+                if (devList.contains(dev.getDeviceName())) {
+                    subItems.setStatusInfo(ThingStatusInfoBuilder.create(ThingStatus.ONLINE).build());
+                }
+            }
+        }
+
+    }
+
+    @Override
+    public void onDeviceValuesReceived() {
+
     }
 
     private void stopConfigPolling() {
@@ -138,6 +203,13 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGa
     @Override
     public String getUID() {
         return getThing().getUID().toString();
+    }
+
+    public static <T> T as(Class<T> clazz, Object o) {
+        if (clazz.isInstance(o)) {
+            return clazz.cast(o);
+        }
+        return null;
     }
 
 }

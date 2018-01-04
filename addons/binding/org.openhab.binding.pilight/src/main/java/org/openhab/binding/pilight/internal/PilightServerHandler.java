@@ -14,7 +14,6 @@ package org.openhab.binding.pilight.internal;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +23,6 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.smarthome.core.library.types.DecimalType;
 import org.openhab.binding.pilight.PilightBindingConstants;
 import org.openhab.binding.pilight.PilightGatewayConfig;
-import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback.DeviceStatus;
 import org.openhab.binding.pilight.internal.IPilightGatewayHandlerCallback.GatewayStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +47,7 @@ public class PilightServerHandler implements IReadThreadCallbacks {
 
     private final Logger logger = LoggerFactory.getLogger(PilightServerHandler.class);
 
-    private final Map<String, PilightDeviceHandler> registeredDevices = new HashMap<String, PilightDeviceHandler>();
+    private final List<String> registeredDevices = new ArrayList<String>();
 
     private IPilightGatewayHandlerCallback gatewayHandler;
     private PilightGatewayConfig cfg;
@@ -145,23 +143,12 @@ public class PilightServerHandler implements IReadThreadCallbacks {
 
             // check if it was a 'origin' json
             subNode = node.get("origin");
-            if (subNode != null)
-
-            {
+            if (subNode != null) {
                 logger.debug("origin received from pilight");
                 // value = core or config or sender or receiver
                 String value = subNode.asText();
                 if (value.equalsIgnoreCase("core")) {
-                    // {"origin":"core","values":{"cpu":0.2872180289431904,"ram":0.7184862377889740},"type":-1,"uuid":"0000-74-da-38-0e47eb"}
-                    /*
-                     * tryReadDoubleValue(node, "cpu");
-                     * tryReadDoubleValue(node, "ram");
-                     * tryReadIntValue(node, "version");
-                     * tryReadIntValue(node, "lpf");
-                     * tryReadIntValue(node, "hpf");
-                     */
                     readPilightOriginCore(subNode);
-
                 } else if (value.equalsIgnoreCase("sender")) {
                     // no publish to OH
                 } else if (value.equalsIgnoreCase("receiver")) {
@@ -192,12 +179,21 @@ public class PilightServerHandler implements IReadThreadCallbacks {
     }
 
     private void readPilightOriginCore(JsonNode node) {
+        // {"origin":"core","values":{"cpu":0.2872180289431904,"ram":0.7184862377889740},"type":-1,"uuid":"0000-74-da-38-0e47eb"}
+        /*
+         * tryReadDoubleValue(node, "cpu");
+         * tryReadDoubleValue(node, "ram");
+         * tryReadIntValue(node, "version");
+         * tryReadIntValue(node, "lpf");
+         * tryReadIntValue(node, "hpf");
+         */
+
         Double val;
         if (null != (val = tryReadDoubleValue(node, "cpu"))) {
-            gatewayHandler.writeChannel(PilightBindingConstants.CHANNEL_CPU, new DecimalType(val));
+            gatewayHandler.writeGatewayChannel(PilightBindingConstants.CHANNEL_CPU, new DecimalType(val));
         }
         if (null != (val = tryReadDoubleValue(node, "ram"))) {
-            gatewayHandler.writeChannel(PilightBindingConstants.CHANNEL_RAM, new DecimalType(val));
+            gatewayHandler.writeGatewayChannel(PilightBindingConstants.CHANNEL_RAM, new DecimalType(val));
         }
     }
 
@@ -206,29 +202,20 @@ public class PilightServerHandler implements IReadThreadCallbacks {
             JsonNode subNode = configNode.get("pilight");
             subNode = subNode.get("version");
             subNode = subNode.get("current");
-            gatewayHandler.writeProperty(PilightBindingConstants.PROP_PILIGHT, subNode.asText());
+            gatewayHandler.writeGatewayProperty(PilightBindingConstants.PROP_PILIGHT, subNode.asText());
         } catch (NullPointerException e) {
             // no special handling
         }
     }
 
     private void readPilightConfiguration(@NonNull JsonNode configNode) {
-        List<String> allKnownDevies = new ArrayList<String>(registeredDevices.keySet());
+        registeredDevices.clear();
         Iterator<Entry<String, JsonNode>> jsonDevices = configNode.fields();
         while (jsonDevices.hasNext()) {
             Map.Entry<String, JsonNode> jsonDevice = jsonDevices.next();
-            if (allKnownDevies.contains(jsonDevice.getKey())) {
-                allKnownDevies.remove(jsonDevice.getKey());
-                // remove found device
-                registeredDevices.get(jsonDevice.getKey()).notifyStatus(DeviceStatus.GATEWAY_ONLINE_FOUND_IN_CONFIG);
-            } else {
-                // new device
-                // TODO: use this for auto - discover
-            }
+            registeredDevices.add(jsonDevice.getKey());
         }
-        for (String removedDevice : allKnownDevies) {
-            registeredDevices.get(removedDevice).notifyStatus(DeviceStatus.GATEWAY_ONLINE_NOT_FOUND_IN_CONFIG);
-        }
+        gatewayHandler.onDeviceConfigReceived(new ArrayList<String>(registeredDevices));
     }
 
     private Double tryReadDoubleValue(JsonNode node, String valueName) {
@@ -261,32 +248,15 @@ public class PilightServerHandler implements IReadThreadCallbacks {
             case RUNNING:
                 readerThread.sendRequest(String.format(setupChannel, requestUid));
                 readerThread.sendRequest(requestConfig);
-                gatewayHandler.onStatusChanged(GatewayStatus.ONLINE);
-                NotifyAllSubThings(DeviceStatus.GATEWAY_ONLINE_CONFIG_PENGING);
+                gatewayHandler.onGatewayStatusChanged(GatewayStatus.ONLINE);
                 break;
             case TERMINATED:
             case WAITING:
             case INIT:
             default:
-                gatewayHandler.onStatusChanged(GatewayStatus.OFFLINE);
-                NotifyAllSubThings(DeviceStatus.GATEWAY_OFFLINE);
+                gatewayHandler.onGatewayStatusChanged(GatewayStatus.OFFLINE);
                 break;
         }
-    }
-
-    private void NotifyAllSubThings(DeviceStatus deviceStatus) {
-        for (PilightDeviceHandler dev : registeredDevices.values()) {
-            dev.notifyStatus(deviceStatus);
-        }
-    }
-
-    @NonNull
-    public PilightDeviceHandler getOrCreateDeviceHandler(String pilightDeviceName,
-            IPilightDeviceHandlerCallback callback) {
-        if (!registeredDevices.containsKey(pilightDeviceName)) {
-            registeredDevices.put(pilightDeviceName, new PilightDeviceHandler(pilightDeviceName, this, callback));
-        }
-        return registeredDevices.get(pilightDeviceName);
     }
 
     /**
@@ -304,16 +274,12 @@ public class PilightServerHandler implements IReadThreadCallbacks {
         return null;
     }
 
-    public void initializeDevice(IPilightDeviceHandlerCallback devHandler) {
-        if (!registeredDevices.containsKey(devHandler.getDeviceName())) {
-            PilightDeviceHandler handler = new PilightDeviceHandler(devHandler.getDeviceName(), this, devHandler);
-            registeredDevices.put(devHandler.getDeviceName(), handler);
-            devHandler.setHandler(handler);
-        }
-    }
-
     public void requestConfig() {
         readerThread.sendRequest(requestConfig);
+    }
+
+    public void requestValues() {
+        readerThread.sendRequest(requestValues);
     }
 
 }

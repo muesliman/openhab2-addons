@@ -1,5 +1,7 @@
 package org.openhab.binding.pilight.internal;
 
+import java.util.List;
+
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.smarthome.core.types.State;
 
@@ -11,11 +13,15 @@ public interface IPilightGatewayHandlerCallback {
         OFFLINE
     };
 
-    void writeProperty(@NonNull String property, @NonNull String value);
+    void onDeviceConfigReceived(List<String> deviceList);
 
-    void writeChannel(@NonNull String channel, @NonNull State value);
+    void onDeviceValuesReceived();
 
-    void onStatusChanged(@NonNull GatewayStatus status);
+    void writeGatewayProperty(@NonNull String property, @NonNull String value);
+
+    void writeGatewayChannel(@NonNull String channel, @NonNull State value);
+
+    void onGatewayStatusChanged(@NonNull GatewayStatus status);
 
     @NonNull
     String getUID();

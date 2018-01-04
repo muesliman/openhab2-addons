@@ -53,5 +53,10 @@
         <state readOnly="true" pattern="%d">
         </state>
     </channel-type>
+    
+    <channel-type id="trigger-channel">
+	   <kind>trigger</kind>
+	   <label>Trigger Channel</label>
+    </channel-type>
 
 </thing:thing-descriptions>
