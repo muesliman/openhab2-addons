@@ -12,8 +12,6 @@
  */
 package org.openhab.binding.pilight.internal;
 
-import static org.openhab.binding.pilight.PilightBindingConstants.*;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,9 +22,10 @@ import java.util.Map.Entry;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.smarthome.core.library.types.DecimalType;
+import org.openhab.binding.pilight.PilightBindingConstants;
 import org.openhab.binding.pilight.PilightGatewayConfig;
 import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback.DeviceStatus;
-import org.openhab.binding.pilight.internal.IPilightServerHandlerCallback.HandlerStatus;
+import org.openhab.binding.pilight.internal.IPilightGatewayHandlerCallback.GatewayStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,17 +51,17 @@ public class PilightServerHandler implements IReadThreadCallbacks {
 
     private final Map<String, PilightDeviceHandler> registeredDevices = new HashMap<String, PilightDeviceHandler>();
 
-    private IPilightServerHandlerCallback pilightGatewayHandler;
+    private IPilightGatewayHandlerCallback gatewayHandler;
     private PilightGatewayConfig cfg;
 
     private String requestUid = "oh2";
     private ReaderThread readerThread;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public void initialize(IPilightServerHandlerCallback pilightGatewayHandler, PilightGatewayConfig cfg) {
+    public void initialize(IPilightGatewayHandlerCallback pilightGatewayHandler, PilightGatewayConfig cfg) {
         logger.debug("Initializing PilightInstance.");
         this.cfg = cfg;
-        this.pilightGatewayHandler = pilightGatewayHandler;
+        this.gatewayHandler = pilightGatewayHandler;
 
         String uuid = pilightGatewayHandler.getUID();
         int first = uuid.length() - 21; // max len from PILIGHT
@@ -140,11 +139,7 @@ public class PilightServerHandler implements IReadThreadCallbacks {
 
                 configNode = subNode.get("registry");
                 if (configNode != null) {
-                    configNode = configNode.get("pilight");
-                    configNode = configNode.get("version");
-                    configNode = configNode.get("current");
-
-                    pilightGatewayHandler.writeProperty(PROP_PILIGHT, configNode.asText());
+                    readPilightRegistry(configNode);
                 }
             }
 
@@ -165,11 +160,7 @@ public class PilightServerHandler implements IReadThreadCallbacks {
                      * tryReadIntValue(node, "lpf");
                      * tryReadIntValue(node, "hpf");
                      */
-                    Double val;
-
-                    if (null != (val = tryReadDoubleValue(node, "cpu"))) {
-                        pilightGatewayHandler.writeChannel(CHANNEL_CPU, new DecimalType(val));
-                    }
+                    readPilightOriginCore(subNode);
 
                 } else if (value.equalsIgnoreCase("sender")) {
                     // no publish to OH
@@ -200,6 +191,27 @@ public class PilightServerHandler implements IReadThreadCallbacks {
         }
     }
 
+    private void readPilightOriginCore(JsonNode node) {
+        Double val;
+        if (null != (val = tryReadDoubleValue(node, "cpu"))) {
+            gatewayHandler.writeChannel(PilightBindingConstants.CHANNEL_CPU, new DecimalType(val));
+        }
+        if (null != (val = tryReadDoubleValue(node, "ram"))) {
+            gatewayHandler.writeChannel(PilightBindingConstants.CHANNEL_RAM, new DecimalType(val));
+        }
+    }
+
+    private void readPilightRegistry(@NonNull JsonNode configNode) {
+        try {
+            JsonNode subNode = configNode.get("pilight");
+            subNode = subNode.get("version");
+            subNode = subNode.get("current");
+            gatewayHandler.writeProperty(PilightBindingConstants.PROP_PILIGHT, subNode.asText());
+        } catch (NullPointerException e) {
+            // no special handling
+        }
+    }
+
     private void readPilightConfiguration(@NonNull JsonNode configNode) {
         List<String> allKnownDevies = new ArrayList<String>(registeredDevices.keySet());
         Iterator<Entry<String, JsonNode>> jsonDevices = configNode.fields();
@@ -208,14 +220,14 @@ public class PilightServerHandler implements IReadThreadCallbacks {
             if (allKnownDevies.contains(jsonDevice.getKey())) {
                 allKnownDevies.remove(jsonDevice.getKey());
                 // remove found device
-                registeredDevices.get(jsonDevice.getKey()).notifyStatus(DeviceStatus.ONLINE);
+                registeredDevices.get(jsonDevice.getKey()).notifyStatus(DeviceStatus.GATEWAY_ONLINE_FOUND_IN_CONFIG);
             } else {
                 // new device
                 // TODO: use this for auto - discover
             }
         }
         for (String removedDevice : allKnownDevies) {
-            registeredDevices.get(removedDevice).notifyStatus(DeviceStatus.NOT_FOUND_IN_CONFIG);
+            registeredDevices.get(removedDevice).notifyStatus(DeviceStatus.GATEWAY_ONLINE_NOT_FOUND_IN_CONFIG);
         }
     }
 
@@ -249,17 +261,22 @@ public class PilightServerHandler implements IReadThreadCallbacks {
             case RUNNING:
                 readerThread.sendRequest(String.format(setupChannel, requestUid));
                 readerThread.sendRequest(requestConfig);
-                pilightGatewayHandler.handlerStatusChanged(HandlerStatus.ONLINE);
+                gatewayHandler.onStatusChanged(GatewayStatus.ONLINE);
+                NotifyAllSubThings(DeviceStatus.GATEWAY_ONLINE_CONFIG_PENGING);
                 break;
             case TERMINATED:
             case WAITING:
             case INIT:
             default:
-                pilightGatewayHandler.handlerStatusChanged(HandlerStatus.OFFLINE);
-                for (PilightDeviceHandler dev : registeredDevices.values()) {
-                    dev.notifyStatus(DeviceStatus.GATEWAY_OFFLINE);
-                }
+                gatewayHandler.onStatusChanged(GatewayStatus.OFFLINE);
+                NotifyAllSubThings(DeviceStatus.GATEWAY_OFFLINE);
                 break;
+        }
+    }
+
+    private void NotifyAllSubThings(DeviceStatus deviceStatus) {
+        for (PilightDeviceHandler dev : registeredDevices.values()) {
+            dev.notifyStatus(deviceStatus);
         }
     }
 

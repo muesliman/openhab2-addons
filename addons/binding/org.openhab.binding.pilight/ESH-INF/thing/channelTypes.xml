@@ -41,10 +41,17 @@
 	<channel-type id="cpu">
 		<item-type>Number</item-type>
 		<label>cpu load</label>
-		<description>xpu load in %</description>
-		<category>Pressure</category>
+		<description>cpu load in %</description>
 		<state readOnly="true" pattern="%.1f %%">
 		</state>
 	</channel-type>
+	
+	<channel-type id="ram">
+        <item-type>Number</item-type>
+        <label>ram usage</label>
+        <description>ram usage</description>
+        <state readOnly="true" pattern="%d">
+        </state>
+    </channel-type>
 
 </thing:thing-descriptions>

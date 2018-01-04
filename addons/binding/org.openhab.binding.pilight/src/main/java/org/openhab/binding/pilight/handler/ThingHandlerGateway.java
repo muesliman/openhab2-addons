@@ -26,7 +26,7 @@ import org.eclipse.smarthome.core.types.Command;
 import org.eclipse.smarthome.core.types.State;
 import org.openhab.binding.pilight.PilightGatewayConfig;
 import org.openhab.binding.pilight.internal.IPilightDeviceHandlerCallback;
-import org.openhab.binding.pilight.internal.IPilightServerHandlerCallback;
+import org.openhab.binding.pilight.internal.IPilightGatewayHandlerCallback;
 import org.openhab.binding.pilight.internal.PilightServerHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  * @author muesliman/sja initial
  *
  */
-public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightServerHandlerCallback {
+public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGatewayHandlerCallback {
 
     private final Logger logger = LoggerFactory.getLogger(ThingHandlerGateway.class);
     private ScheduledFuture<?> pollConfigJob;
@@ -76,6 +76,7 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightSe
 
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
+
         // if (command instanceof RefreshType) {
         // boolean success = updateWeatherData();
         // if (success) {
@@ -100,8 +101,8 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightSe
     }
 
     @Override
-    public void handlerStatusChanged(HandlerStatus status) {
-        if (status == IPilightServerHandlerCallback.HandlerStatus.ONLINE) {
+    public void onStatusChanged(GatewayStatus status) {
+        if (status == IPilightGatewayHandlerCallback.GatewayStatus.ONLINE) {
             updateStatus(ThingStatus.ONLINE);
             startConfigPolling();
         } else {

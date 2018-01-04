@@ -4,9 +4,10 @@ public interface IPilightDeviceHandlerCallback {
 
     public enum DeviceStatus {
         INIT,
-        ONLINE,
         GATEWAY_OFFLINE,
-        NOT_FOUND_IN_CONFIG
+        GATEWAY_ONLINE_CONFIG_PENGING,
+        GATEWAY_ONLINE_FOUND_IN_CONFIG,
+        GATEWAY_ONLINE_NOT_FOUND_IN_CONFIG
     }
 
     String getDeviceName();

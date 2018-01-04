@@ -11,6 +11,7 @@
 
         <channels>
             <channel id="cpu" typeId="cpu" />
+            <channel id="ram" typeId="ram" />
         </channels> 
 
         <properties>

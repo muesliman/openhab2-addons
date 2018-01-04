@@ -41,6 +41,7 @@ public class PilightBindingConstants {
 
     public static final String CHANNEL_STATE = "state";
     public static final String CHANNEL_CPU = "cpu";
+    public static final String CHANNEL_RAM = "ram";
 
     // List of GW Properties
 

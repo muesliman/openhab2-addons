@@ -3,9 +3,9 @@ package org.openhab.binding.pilight.internal;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.smarthome.core.types.State;
 
-public interface IPilightServerHandlerCallback {
+public interface IPilightGatewayHandlerCallback {
 
-    public enum HandlerStatus {
+    public enum GatewayStatus {
         INIT,
         ONLINE,
         OFFLINE
@@ -15,7 +15,7 @@ public interface IPilightServerHandlerCallback {
 
     void writeChannel(@NonNull String channel, @NonNull State value);
 
-    void handlerStatusChanged(@NonNull HandlerStatus status);
+    void onStatusChanged(@NonNull GatewayStatus status);
 
     @NonNull
     String getUID();

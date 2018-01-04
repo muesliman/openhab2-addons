@@ -39,28 +39,28 @@ public class ThingHandlerSwitch extends BaseThingHandler implements IPilightDevi
     @Override
     public void handleCommand(ChannelUID channelUID, Command command) {
         // TODO Auto-generated method stub
-
     }
 
     @Override
     public void onDeviceStatusChanged(DeviceStatus status) {
         switch (status) {
-            case ONLINE:
-                updateStatus(ThingStatus.ONLINE);
-                break;
             case GATEWAY_OFFLINE:
                 updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.BRIDGE_OFFLINE);
                 break;
-            case NOT_FOUND_IN_CONFIG:
+            case GATEWAY_ONLINE_CONFIG_PENGING:
+                updateStatus(ThingStatus.UNKNOWN);
+                break;
+            case GATEWAY_ONLINE_FOUND_IN_CONFIG:
+                updateStatus(ThingStatus.ONLINE);
+                break;
+            case GATEWAY_ONLINE_NOT_FOUND_IN_CONFIG:
                 updateStatus(ThingStatus.OFFLINE, ThingStatusDetail.CONFIGURATION_ERROR,
                         String.format(STATUS_DEVICE_NOT_FOUND_IN_PILIGHT_CONFIGURATION, cfg.pilightDeviceName));
                 break;
             default:
                 updateStatus(ThingStatus.UNKNOWN);
                 break;
-
         }
-
     }
 
     @Override
