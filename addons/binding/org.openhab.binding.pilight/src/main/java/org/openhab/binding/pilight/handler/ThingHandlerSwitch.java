@@ -7,7 +7,6 @@ import org.eclipse.smarthome.core.thing.ThingStatus;
 import org.eclipse.smarthome.core.thing.ThingStatusInfo;
 import org.eclipse.smarthome.core.thing.binding.BaseThingHandler;
 import org.eclipse.smarthome.core.types.Command;
-import org.openhab.binding.pilight.PilightBindingConstants;
 import org.openhab.binding.pilight.PilightDeviceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +17,7 @@ public class ThingHandlerSwitch extends BaseThingHandler implements ThingHandler
     private final Logger logger = LoggerFactory.getLogger(ThingHandlerSwitch.class);
 
     private PilightDeviceConfig cfg;
+    private ThingHandlerGateway gwHandler;
 
     public ThingHandlerSwitch(Thing thing) {
         super(thing);
@@ -27,7 +27,16 @@ public class ThingHandlerSwitch extends BaseThingHandler implements ThingHandler
     public void initialize() {
         cfg = getThing().getConfiguration().as(PilightDeviceConfig.class);
         logger.debug("config: " + cfg);
+        updateBridgeReference();
+
         updateStatus(ThingStatus.OFFLINE); // init complete
+
+    }
+
+    private void updateBridgeReference() {
+        if (getBridge() != null) {
+            gwHandler = (ThingHandlerGateway) getBridge().getHandler();
+        }
     }
 
     @Override
@@ -38,10 +47,8 @@ public class ThingHandlerSwitch extends BaseThingHandler implements ThingHandler
     @Override
     protected void updateConfiguration(Configuration configuration) {
         super.updateConfiguration(configuration);
-        // postCommand(new ChannelUID(getThing().getBridgeUID(), PilightBindingConstants.CHANNEL_CONFIG_TRIGGER),
-        // RefreshType.REFRESH);
-        triggerChannel(new ChannelUID(getThing().getBridgeUID(), PilightBindingConstants.CHANNEL_CONFIG_TRIGGER));
-
+        updateBridgeReference();
+        gwHandler.requestSubThingStatusRefresh();
     }
 
     @Override

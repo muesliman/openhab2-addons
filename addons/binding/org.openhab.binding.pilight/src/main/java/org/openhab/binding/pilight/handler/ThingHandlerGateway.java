@@ -69,7 +69,7 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGa
 
     @Override
     public void childHandlerInitialized(ThingHandler childHandler, Thing childThing) {
-        pilightInstance.requestConfig();
+        requestSubThingStatusRefresh();
     }
 
     @Override
@@ -83,7 +83,7 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGa
         switch (channelUID.getId()) {
             case PilightBindingConstants.CHANNEL_CONFIG_TRIGGER:
 
-                pilightInstance.requestConfig();
+                requestSubThingStatusRefresh();
 
                 break;
         }
@@ -99,7 +99,7 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGa
         switch (channelUID.getId()) {
             case PilightBindingConstants.CHANNEL_CONFIG_TRIGGER:
                 if (command instanceof RefreshType) {
-                    pilightInstance.requestConfig();
+                    requestSubThingStatusRefresh();
                 }
                 break;
             // case CHANNEL_TEMPERATURE:
@@ -196,8 +196,12 @@ public class ThingHandlerGateway extends BaseBridgeHandler implements IPilightGa
         stopConfigPolling();
 
         pollConfigJob = scheduler.scheduleWithFixedDelay(() -> {
-            pilightInstance.requestConfig();
+            requestSubThingStatusRefresh();
         }, 0, cfg.configUpdadeInverval, TimeUnit.MINUTES);
+    }
+
+    public void requestSubThingStatusRefresh() {
+        pilightInstance.requestConfig();
     }
 
     @Override
